@@ -5,7 +5,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0e1015;--pn:#161922;--pn2:#1d212c;--bd:#272c3a;--tx:#eef0f6;--mu:#8b93a8;--ac:#8493ff;--l:#e7eaf6;--d:#7886c4;
+:root{--bg:#0e1015;--pn:#161922;--pn2:#1d212c;--bd:#272c3a;--tx:#eef0f6;--mu:#8b93a8;--ac:#8493ff;--l:#e4ecf0;--d:#6f9dba;
 --c0:#3ddbb6;--c1:#6fdc8c;--c2:#b5e26a;--c3:#ffd166;--c4:#ff9f5a;--c5:#ff5c7a;color-scheme:dark}
 *{box-sizing:border-box}
 html,body{margin:0;background:radial-gradient(120% 55% at 50% -8%,#1c2245 0,var(--bg) 62%) fixed;color:var(--tx);font:15px/1.45 Manrope,system-ui,sans-serif}
@@ -37,10 +37,19 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 #info{margin:12px 0;padding:12px 16px;min-height:62px;background:var(--pn);border:1px solid var(--bd);border-radius:16px}
 #info b{font-size:24px;letter-spacing:-.02em}
 #nav{display:flex;gap:8px}#nav button{flex:1;font-size:18px;height:48px;padding:0}
-svg{width:100%;height:64px;display:block;margin:12px 0;background:var(--pn);border:1px solid var(--bd);border-radius:14px}
+#gr{width:100%;height:64px;display:block;margin:12px 0;background:var(--pn);border:1px solid var(--bd);border-radius:14px}
 #mv{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:24px}
 #mv span{padding:5px 10px;border-radius:10px;background:var(--pn2);cursor:pointer;border-left:3px solid var(--bd);font-weight:600}
 #mv span.on{outline:2px solid var(--ac)}#mv em{color:var(--mu);font-style:normal;align-self:center;font-size:12px;margin:0 2px 0 6px}
+#bd{position:relative}#bd div{position:relative}
+#bd img{width:92%;height:92%;pointer-events:none;user-select:none;-webkit-user-drag:none;filter:drop-shadow(0 1px 1px #0003)}
+#bd s{position:absolute;text-decoration:none;font-size:min(2.6vw,11px);font-weight:700;line-height:1}
+#bd s.r{top:3px;left:4px}#bd s.f{bottom:3px;right:4px}.l s{color:var(--d)}.d s{color:var(--l)}
+.bg{position:absolute;top:2px;right:2px;z-index:2;width:44%;aspect-ratio:1;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:min(3.2vw,13px);font-weight:800;color:#10131a;box-shadow:0 1px 3px #0008}
+.ar{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3}
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.tag{padding:4px 11px;border-radius:999px;color:#10131a;font-weight:800;font-size:13px}
+#info p{margin:8px 0 0;color:#cfd4e3}#info p b{color:var(--tx)}
 </style></head><body>
 <h1>Analyse de parties chess.com</h1>
 <div class="row"><input id="u" value="dkyx11" autocapitalize="off" aria-label="Pseudo chess.com"><button id="go">Charger</button></div>
@@ -53,10 +62,10 @@ svg{width:100%;height:64px;display:block;margin:12px 0;background:var(--pn);bord
 <div id="info"></div>
 <div id="nav"><button data-k="0" aria-label="Début">⏮</button><button data-k="-1" aria-label="Précédent">◀</button><button data-k="1" aria-label="Suivant">▶</button><button data-k="9" aria-label="Fin">⏭</button><button id="flip" aria-label="Retourner">⇅</button></div>
 <svg id="gr" viewBox="0 0 300 60" preserveAspectRatio="none"></svg>
-<div id="mv"></div></div>
+</div>
 <script>
 const $=s=>document.querySelector(s),NAMES=['Meilleur coup','Excellent','Bon','Imprécision','Erreur','Gaffe'],G={k:'♚',q:'♛',r:'♜',b:'♝',n:'♞',p:'♟'};
-let archives=[],games=[],user='',fens=[],mvs=[],ev=[],best=[],cls=[],acc=[],idx=0,flip=false,tok=0;
+let archives=[],games=[],user='',fens=[],mvs=[],ev=[],best=[],cls=[],acc=[],idx=0,flip=false,meWhite=true,tok=0;
 const say=t=>$('#msg').textContent=t;
 const wp=cp=>50+50*(2/(1+Math.exp(-0.00368208*cp))-1);
 async function api(u){const r=await fetch(u);if(!r.ok)throw new Error(r.status===404?'Pseudo introuvable.':'Erreur chess.com ('+r.status+').');return r.json()}
@@ -78,7 +87,7 @@ function showList(){$('#list').innerHTML='';games.forEach((g,i)=>{
 function open(g,black){
   const c=new Chess();if(!c.load_pgn(g.pgn)){say('PGN illisible.');return}
   mvs=c.history({verbose:true});const h=new Chess();fens=[h.fen()];mvs.forEach(m=>{h.move(m.san);fens.push(h.fen())});
-  ev=[];best=[];cls=[];acc=[];idx=0;flip=black;$('#an').style.display='block';draw();$('#an').scrollIntoView();run()}
+  ev=[];best=[];cls=[];acc=[];idx=0;flip=black;meWhite=!black;$('#an').style.display='block';draw();$('#an').scrollIntoView();run()}
 const cache=new Map();
 async function evalFen(fen,depth){
   const c=new Chess(fen);if(c.game_over())return{cp:c.in_checkmate()?(c.turn()==='w'?-1e4:1e4):0,best:''};
@@ -103,21 +112,38 @@ function classify(i){
   cls[i]=isBest?0:loss<.02?1:loss<.05?2:loss<.1?3:loss<.2?4:5;
   acc[i]=Math.max(0,Math.min(100,103.1668*Math.exp(-0.04354*loss*100)-3.1669))}
 function sanOf(fen,u){if(!u)return'';const c=new Chess(fen),m=c.move({from:u.slice(0,2),to:u.slice(2,4),promotion:u[4]});return m?m.san:''}
+const PS='https://cdn.jsdelivr.net/gh/lichess-org/lila@master/public/piece/cburnett/',SYM=['★','!','✓','?!','?','??'];
+const fmt=v=>Math.abs(v)>=9000?(v>0?'mat gagnant':'mat subi'):(v>0?'+':'')+(v/100).toFixed(1);
+function note(i){
+  const white=i%2===1,f=cp=>white?cp:-cp,b=f(ev[i-1]),a=f(ev[i]),k=cls[i],bs=sanOf(fens[i-1],best[i-1]);
+  const bt=bs.includes('#')?', qui donnait mat':bs.includes('x')?', qui capturait une pièce':bs.includes('+')?', qui donnait échec':'';
+  if(k===0)return'Le meilleur coup de la position selon le moteur.';
+  if(k===1)return`Presque aussi précis que le meilleur coup (${bs}) : la perte est négligeable.`;
+  if(k===2)return`Coup correct. Le moteur préférait ${bs}, mais l’écart reste faible.`;
+  const miss=b>=9000&&a<9000?'Un mat forcé était possible. ':a<=-9000?'Ce coup permet un mat adverse. ':'';
+  return`${miss}Évaluation pour le camp qui joue : ${fmt(b)} → ${fmt(a)} (chances de gain ${Math.round(wp(b))} % → ${Math.round(wp(a))} %). Meilleur coup : ${bs}${bt}.`}
 function draw(){
   const g=fens[idx].split(' ')[0].split('/').map(r=>[...r].flatMap(ch=>/\d/.test(ch)?Array(+ch).fill(''):[ch])).flat();
-  const lm=idx?[mvs[idx-1].from,mvs[idx-1].to]:[],sq=i=>'abcdefgh'[i%8]+(8-(i>>3));
+  const lm=idx?[mvs[idx-1].from,mvs[idx-1].to]:[],sq=i=>'abcdefgh'[i%8]+(8-(i>>3)),k=idx?cls[idx]:undefined;
   const order=[...Array(64).keys()];if(flip)order.reverse();
-  $('#bd').innerHTML=order.map(i=>{const p=g[i];return`<div class="${((i>>3)+i)%2?'d':'l'} ${lm.includes(sq(i))?'hl':''} ${p?(p===p.toUpperCase()?'w':'b'):''}">${p?G[p.toLowerCase()]:''}</div>`}).join('');
-  const e=ev[idx],h=$('#bar i');h.style.height=(e===undefined?50:wp(e))+'%';
-  const txt=e===undefined?'…':Math.abs(e)>=9000?'Mat':(e>0?'+':'')+(e/100).toFixed(2);
-  const nxt=best[idx]?sanOf(fens[idx],best[idx]):'';
-  $('#info').innerHTML=`<b>${txt}</b> ${idx&&cls[idx]!==undefined?`· <span style="color:var(--c${cls[idx]})">${mvs[idx-1].san} : ${NAMES[cls[idx]]}</span>`:''}${nxt?`<br><small style="color:var(--mu)">Meilleur coup ici : ${nxt}</small>`:''}`;
+  const cells=order.map(i=>{const p=g[i],s=sq(i),
+    rk=(flip?i%8===7:i%8===0)?8-(i>>3):'',fl=(flip?i>>3===0:i>>3===7)?'abcdefgh'[i%8]:'';
+    return`<div class="${((i>>3)+i)%2?'d':'l'} ${lm.includes(s)?'hl':''}">${rk!==''?`<s class="r">${rk}</s>`:''}${fl?`<s class="f">${fl}</s>`:''}${p?`<img src="${PS}${p===p.toUpperCase()?'w':'b'}${p.toUpperCase()}.svg" alt="" draggable="false">`:''}${k!==undefined&&s===lm[1]?`<span class="bg" style="background:var(--c${k})">${SYM[k]}</span>`:''}</div>`}).join('');
+  let ar='';
+  if(k>=3&&best[idx-1]){const u=best[idx-1],pt=t=>{const x='abcdefgh'.indexOf(t[0]),y=8-t[1];return flip?[7-x+.5,7-y+.5]:[x+.5,y+.5]},
+    [x1,y1]=pt(u.slice(0,2)),[x2,y2]=pt(u.slice(2,4)),d=Math.hypot(x2-x1,y2-y1),ex=x2-(x2-x1)/d*.3,ey=y2-(y2-y1)/d*.3;
+    ar=`<svg class="ar" viewBox="0 0 8 8"><defs><marker id="ah" markerWidth="3" markerHeight="3" refX="1.4" refY="1.5" orient="auto"><path d="M0,0L3,1.5L0,3z" fill="#81b64c"/></marker></defs><line x1="${x1}" y1="${y1}" x2="${ex}" y2="${ey}" stroke="#81b64c" stroke-width=".2" stroke-linecap="round" marker-end="url(#ah)" opacity=".92"/></svg>`}
+  $('#bd').innerHTML=cells+ar;
+  const e=ev[idx];$('#bar i').style.height=(e===undefined?50:wp(e))+'%';
+  const txt=e===undefined?'…':Math.abs(e)>=9000?'Mat':(e>0?'+':'')+(e/100).toFixed(2),ok=idx&&cls[idx]!==undefined;
+  const tag=ok?`<span class="tag" style="background:var(--c${cls[idx]})">${NAMES[cls[idx]]}</span>`:'';
+  const body=!idx?'Position de départ. Avance avec ▶ ou touche la courbe.':ok?`<b>${mvs[idx-1].san}</b> : ${note(idx)}`:'Analyse en cours…';
+  $('#info').innerHTML=`<div class="top"><b>${txt}</b>${tag}</div><p>${body}</p>`;
   const side=p=>{const a=acc.filter((x,i)=>x!==undefined&&i%2===p);return a.length?(a.reduce((s,x)=>s+x,0)/a.length).toFixed(1)+' %':'–'};
   $('#acc').innerHTML=`<span>Blancs <b>${side(1)}</b></span><span>Noirs <b>${side(0)}</b></span>`;
-  $('#mv').innerHTML=mvs.map((m,k)=>{const i=k+1;return`${i%2?`<em>${(i+1)>>1}.</em>`:''}<span data-i="${i}" class="${i===idx?'on':''}" style="border-color:var(--c${cls[i]??9})">${m.san}</span>`}).join('');
   const n=fens.length-1,pts=ev.map((v,i)=>`${i/n*300},${60-wp(v)*.6}`).join(' ');
-  $('#gr').innerHTML=`<polyline points="0,60 ${pts} ${(ev.length-1)/n*300},60" fill="#c9d1e6" opacity=".85"/><line x1="${idx/n*300}" x2="${idx/n*300}" y1="0" y2="60" stroke="#e8b04a" stroke-width="2"/>`}
-$('#mv').onclick=e=>{if(e.target.dataset.i){idx=+e.target.dataset.i;draw()}};
+  $('#gr').innerHTML=`<polyline points="0,60 ${pts} ${(ev.length-1)/n*300},60" fill="#c9d1e6" opacity=".85"/><line x1="${idx/n*300}" x2="${idx/n*300}" y1="0" y2="60" stroke="#8493ff" stroke-width="2"/>`}
+$('#gr').onclick=e=>{if(!fens.length)return;const r=e.currentTarget.getBoundingClientRect();idx=Math.max(0,Math.min(fens.length-1,Math.round((e.clientX-r.left)/r.width*(fens.length-1))));draw()};
 document.querySelectorAll('#nav [data-k]').forEach(b=>b.onclick=()=>{const k=+b.dataset.k;idx=k===0?0:k===9?fens.length-1:Math.max(0,Math.min(fens.length-1,idx+k));draw()});
 $('#flip').onclick=()=>{flip=!flip;draw()};
 addEventListener('keydown',e=>{const k={ArrowLeft:-1,ArrowRight:1}[e.key];if(k&&fens.length){idx=Math.max(0,Math.min(fens.length-1,idx+k));draw()}});
